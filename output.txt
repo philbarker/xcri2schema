@@ -1,0 +1,13 @@
+[
+  {
+    "@id": "_:N0d6349cc81524e299ed6af5dbc8a5ddc",
+    "@type": [
+      "http://schema.org/ItemList"
+    ],
+    "http://schema.org/description": [
+      {
+        "@value": "Poppleton University's Postgraduate prospectus. This data is released under Open Government Licence (OGL) Version 1.0 - http://www.nationalarchives.gov.uk/doc/open-government-licence/"
+      }
+    ]
+  }
+]
