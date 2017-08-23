@@ -18,6 +18,11 @@ XSI_TYPE = "{http://www.w3.org/2001/XMLSchema-instance}type"
 HTML_ELEMS = ('div', 'p',
               '{http://www.w3.org/1999/xhtml}div',
               '{http://www.w3.org/1999/xhtml}p')
+# (these should probably all be class constants, defining
+# here gives a nice syntactic parity with namespaces etc
+# imported from rdflib, but going to cause problems if
+# ever CourseCatalogue is imported into another file without
+# them)
 
 class CourseCatalogue():
     """ A course catalogue, based on XCRI-CAP XML (CourseCatalogue.xcri, an
@@ -28,9 +33,11 @@ class CourseCatalogue():
     def __create_course_list_from_XCRI(self) -> URIRef:
         course_list = BNode()
         self.g.add( (course_list, RDF.type, SCHEMA.ItemList) )
-        for child in self.xcri_root.findall('dc:description', namespaces):
-            self.g.add( (course_list, SCHEMA.description, Literal(child.text, lang="en") ) )
-        self.g.add( (course_list, SCHEMA.itemListOrder, Literal('ordered', lang='en')) )
+        for desc in self.xcri_root.findall('dc:description', namespaces):
+            d = Literal(desc.text, lang="en")
+            self.g.add( (course_list, SCHEMA.description, d) )
+        o = Literal('ordered', lang='en')
+        self.g.add( (course_list, SCHEMA.itemListOrder, o) )
         return course_list
 
     def remove_formatting(self, elem: etree.Element) -> str:
@@ -44,7 +51,8 @@ class CourseCatalogue():
                 formatted = True
         if formatted:
             for child in elem.iter():
-                content = content +' '+ child.text
+                if child.text:
+                    content = content +' '+ child.text
             return content
         else:
             return elem.text
@@ -102,6 +110,7 @@ class CourseCatalogue():
         else:
 #            raise Warning('Tried to make alignment with no target')
             print('Warning Tried to make alignment with no target')
+            print(course, '\n')
         self.g.add( (alignment_object, RDF.type, SCHEMA.AlignmentObject) )
         self.g.add( (alignment_object, SCHEMA.alignmentType,
                                        Literal(alignmentType, 'en')) )
@@ -155,10 +164,19 @@ class CourseCatalogue():
         for subject in course_elem.findall('dc:subject', namespaces):
             self.g.add((course, SCHEMA.about, Literal(subject.text, lang='en')))
             if 'courseDataProgramme:JACS3' == subject.get(XSI_TYPE):
+                ident = subject.get('identifier')
+                if ident and subject.text:
+                    name = ident + subject.text
+                elif ident:
+                    name = ident
+                elif subject.text:
+                    name = subject.text
+                else:
+                    name = None
                 self.add_educational_alignment(course, subject,
                                                alignmentType = 'EducationalSubject',
-                                               educationalFramework = 'JACS',
-                                               targetName=subject.text)
+                                               educationalFramework = 'JACS3',
+                                               targetName=name)
         # add course prerequisites
         for prereq in course_elem.findall('mlo:prerequisite', namespaces):
             text = self.remove_formatting(prereq)
@@ -336,12 +354,14 @@ class CourseCatalogue():
 if __name__ == "__main__":
     print("Running with test params is better than running with knives")
     xcri_in="./exampleData/PG-Generic-XCRI-CAP-1.2.xml"
-    schema_out="./exampleData/PG-Generic-XCRI-CAP-1.2.json"
+    fmt = 'json-ld'
+    schema_out=xcri_in+'_out.'+fmt
+
 #to do: specifiy xcri_in from command line
 #to do: xcri_in as feed url
     print("Input file name: ", xcri_in)
     print("Output file name: ", schema_out)
     catalogue = CourseCatalogue(xcri_in)
-    catalogue.g.serialize( format = 'json-ld',
+    catalogue.g.serialize( format = fmt,
                            destination=schema_out, context=CONTEXT )
 
